@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title></title>
+<style>
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* DEFAULT THEME VARIABLES */
+:root{
+  --bg:#101114;
+  --card:#1b1c20;
+  --face:#292a2f;
+  --text:#f4f4f4;
+  --accent:rgb(62,0,138); /* your preferred default */
+}
+
+/* LIGHT THEME — improved */
+body.light {
+  --bg:#f5f5f5;
+  --card:#ffffff;
+  --face:#ffffff;
+  --text:#000000;
+  --accent:#4a90ff;
+}
+
+/* SPACE THEME — accent NOT overridden */
+body.space {
+  --bg:#030314;
+  --card:#0b0c18;
+  --face:#111222;
+  --text:#d8e6ff;
+}
+
+/* STARFIELD LAYER */
+#starfield {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -5;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .6s;
+}
+
+body.space #starfield {
+  opacity: 1;
+}
+
+#starfield canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* BASE BODY */
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:Arial,Helvetica,sans-serif;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  transition:.4s;
+}
+
+.app{width:min(1600px,98vw);text-align:center;transition:.4s}
+
+/* TOP BAR */
+.topbar{
+  position:fixed;
+  top:18px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:8px;
+  align-items:center;
+  z-index:20;
+}
+
+/* BUTTONS */
+button,select,input{font:inherit}
+button{
+  border:1px solid #444;
+  background:var(--card);
+  color:var(--text);
+  border-radius:9px;
+  padding:9px 12px;
+  cursor:pointer;
+  transition:.25s;
+}
+button:hover{
+  filter:brightness(1.15);
+  box-shadow:0 0 12px var(--accent);
+  border-color:var(--accent);
+}
+
+/* CONTROLS */
+.controls{
+  position:fixed;
+  bottom:18px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:center;
+  z-index:20;
+}
+
+/* CLOCK LAYOUT */
+.clock{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:clamp(8px,1.5vw,24px);
+  width:100%;
+}
+
+.group{display:flex;gap:clamp(5px,.9vw,12px);flex:0 0 auto}
+
+/* SEPARATOR */
+.sep{
+  font-size:clamp(50px,10vw,145px);
+  font-weight:900;
+  margin-top:-14px;
+  color:var(--accent);
+  text-shadow:0 0 18px var(--accent);
+}
+
+/* DIGIT BOX */
+.digit{
+  width:clamp(75px,13vw,190px);
+  height:clamp(105px,18vw,255px);
+  position:relative;
+  overflow:hidden;
+}
+
+/* DIGIT FACE */
+.digitFace{
+  position:absolute;
+  inset:0;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:clamp(78px,13vw,185px);
+  font-weight:900;
+  background:var(--face);
+  color:var(--text);
+  border-radius:9px;
+  border:3px solid var(--accent);
+  box-shadow:0 4px 10px rgba(0,0,0,.15), 0 0 18px var(--accent);
+}
+
+/* LIGHT MODE GRADIENT */
+body.light .digitFace,
+body.light .flipDrop {
+  background: linear-gradient(#ffffff, #e9e9e9);
+}
+
+/* FLIP PIECE */
+.flipDrop{
+  position:absolute;
+  left:0;
+  right:0;
+  top:-100%;
+  height:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:clamp(78px,13vw,185px);
+  font-weight:900;
+  background:var(--face);
+  color:var(--text);
+  border-radius:9px;
+  border:3px solid var(--accent);
+  box-shadow:0 4px 10px rgba(0,0,0,.15), 0 0 18px var(--accent);
+  transform-origin:bottom;
+  transform:rotateX(90deg);
+}
+
+/* FLIP ANIMATION */
+@keyframes dropFlip {
+  0% { top:-100%; transform:rotateX(90deg); }
+  100% { top:0; transform:rotateX(0deg); }
+}
+.animate .flipDrop{
+  animation:dropFlip .45s cubic-bezier(.2,.7,.2,1) forwards;
+}
+
+/* DATE + STATUS */
+.date{margin-top:22px;font-size:clamp(16px,2.3vw,28px);opacity:.8}
+.status{margin-top:8px;opacity:.45;font-size:13px}
+
+/* SETTINGS PANEL */
+.panel{
+  position:fixed;
+  right:18px;
+  top:65px;
+  width:250px;
+  background:var(--card);
+  border:1px solid var(--accent);
+  border-radius:14px;
+  padding:15px;
+  text-align:left;
+  display:none;
+  box-shadow:0 15px 40px #0008;
+  z-index:30;
+}
+.panel.open{display:block}
+.panel label{display:block;margin:10px 0 5px;font-size:13px;opacity:.75}
+.panel input,.panel select{
+  width:100%;
+  padding:8px;
+  background:#222;
+  color:white;
+  border:1px solid #555;
+  border-radius:7px;
+}
+
+/* TIMER */
+.timer{font-size:clamp(16px,2vw,22px);margin-top:15px;display:none}
+.timer.show{display:block}
+
+</style>
+</head>
+<body>
+
+<!-- STARFIELD -->
+<div id="starfield"><canvas id="stars"></canvas></div>
+
+<div class="topbar">
+  <button id="settingsBtn">⚙ Settings</button>
+  <button id="fullscreenBtn">⛶ Fullscreen</button>
+</div>
+
+<div class="app">
+  <div class="clock" id="clock">
+    <div class="group"><div class="digit" data-i="0"></div><div class="digit" data-i="1"></div></div>
+    <div class="sep">:</div>
+    <div class="group"><div class="digit" data-i="2"></div><div class="digit" data-i="3"></div></div>
+    <div class="sep secondsSep">:</div>
+    <div class="group seconds"><div class="digit" data-i="4"></div><div class="digit" data-i="5"></div></div>
+  </div>
+  <div class="date" id="date"></div>
+  <div class="status" id="status">Local time</div>
+  <div class="timer" id="timer"></div>
+</div>
+
+<div class="controls">
+  <button id="formatBtn">12 / 24h</button>
+  <button id="secondsBtn">Seconds: ON</button>
+  <button id="dateBtn">Date: ON</button>
+  <button id="themeBtn">Light Theme</button>
+  <button id="spaceBtn">Space Theme</button>
+  <button id="schoolSyncBtn">School Clock Sync</button>
+  <button id="stopwatchBtn">Stopwatch</button>
+  <button id="countdownBtn">Countdown</button>
+</div>
+
+<div class="panel" id="panel">
+  <b>Clock Settings</b>
+  <label>Accent color</label>
+  <input type="color" id="accent" value="#3e008a">
+  <label>Time zone</label>
+  <select id="zone">
+    <option value="local">Local time</option>
+    <option value="America/New_York">New York</option>
+    <option value="America/Chicago">Chicago</option>
+    <option value="America/Denver">Denver</option>
+    <option value="America/Los_Angeles">Los Angeles</option>
+    <option value="Europe/London">London</option>
+    <option value="Europe/Paris">Paris</option>
+    <option value="Asia/Tokyo">Tokyo</option>
+    <option value="Australia/Sydney">Sydney</option>
+  </select>
+  <label>Clock scale</label>
+  <input type="range" id="scale" min=".65" max="1.35" step=".01" value="1">
+</div>
+
+<script>
+/* STARFIELD CANVAS */
+function initStars() {
+  const canvas = document.getElementById("stars");
+  const ctx = canvas.getContext("2d");
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  resize();
+  window.addEventListener("resize", () => {
+    resize();
+    regenerateStars();
+  });
+
+  document.addEventListener("fullscreenchange", () => {
+    resize();
+    regenerateStars();
+  });
+
+  const stars = [];
+  const count = 250;
+
+  function regenerateStars() {
+    stars.length = 0;
+    for (let i = 0; i < count; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 1.8 + 0.2,
+        o: Math.random() * 0.8 + 0.2
+      });
+    }
+  }
+
+  regenerateStars();
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const s of stars) {
+      ctx.fillStyle = `rgba(255,255,255,${s.o})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+}
+
+initStars();
+
+/* CLOCK LOGIC */
+const digits=[...document.querySelectorAll('.digit')];
+let use24=false, showSeconds=true, showDate=true;
+let light=false, space=false;
+let schoolSync=false;
+let schoolOffset=16;
+let zone='local';
+let previous="";
+
+/* TICK SOUND */
+const tickAudio = new AudioContext();
+function tick() {
+  const osc = tickAudio.createOscillator();
+  const gain = tickAudio.createGain();
+
+  osc.connect(gain);
+  gain.connect(tickAudio.destination);
+
+  osc.frequency.value = 2000;
+
+  const t = tickAudio.currentTime;
+
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(0.04, t + 0.015);
+  gain.gain.linearRampToValueAtTime(0.0, t + 0.12);
+
+  osc.start(t);
+  osc.stop(t + 0.15);
+}
+
+function makeDigit(el,n){
+  el.innerHTML = `
+    <div class="digitFace">${n}</div>
+    <div class="flipDrop">${n}</div>
+  `;
+}
+digits.forEach(d=>makeDigit(d,"0"));
+
+function setDigit(el,n,animate){
+  const face = el.querySelector('.digitFace');
+  const flip = el.querySelector('.flipDrop');
+  if(face.textContent === n) return;
+
+  flip.textContent = n;
+
+  if(animate){
+    el.classList.remove('animate');
+    void el.offsetWidth;
+    el.classList.add('animate');
+    setTimeout(()=>{
+      face.textContent = n;
+      el.classList.remove('animate');
+    },450);
+  } else {
+    face.textContent = n;
+  }
+}
+
+function getNow(){return new Date();}
+function getParts(){
+  let d=getNow();
+
+  if(schoolSync){
+    d=new Date(d.getTime()+schoolOffset*1000);
+  }
+
+  let h,m,s;
+
+  if(zone==="local"){
+    h=d.getHours();
+    m=d.getMinutes();
+    s=d.getSeconds();
+  } else {
+    const parts=new Intl.DateTimeFormat('en-US',{
+      timeZone:zone,
+      hour:'2-digit',
+      minute:'2-digit',
+      second:'2-digit',
+      hourCycle:'h23'
+    }).formatToParts(d);
+    h=+parts.find(x=>x.type==='hour').value;
+    m=+parts.find(x=>x.type==='minute').value;
+    s=+parts.find(x=>x.type==='second').value;
+  }
+
+  if(!use24) h=h%12||12;
+
+  return [
+    String(h).padStart(2,'0'),
+    String(m).padStart(2,'0'),
+    String(s).padStart(2,'0')
+  ];
+}
+
+function update(){
+  const p=getParts(), value=p.join('');
+
+  /* update tab title */
+  document.title = p[0] + ":" + p[1] + (showSeconds ? ":" + p[2] : "");
+
+  const visible=value.slice(0,4)+(showSeconds?p[2]:'');
+  digits.forEach((d,i)=>{
+    if(i<4 || showSeconds)
+      setDigit(d,visible[i]||'0',previous!=="");
+  });
+
+  /* tick only when seconds are ON */
+  if (showSeconds && previous !== value) tick();
+  previous=value;
+
+  document.querySelector('.seconds').style.display=showSeconds?'flex':'none';
+  document.querySelector('.secondsSep').style.display=showSeconds?'block':'none';
+
+  document.getElementById('date').style.display=showDate?'block':'none';
+
+  const d=getNow();
+  document.getElementById('date').textContent=new Intl.DateTimeFormat('en-US',{
+    weekday:'long',month:'long',day:'numeric',year:'numeric',
+    timeZone:zone==="local"?undefined:zone
+  }).format(d);
+
+  document.getElementById('status').textContent=
+    zone==="local" ? "Local time" : zone.replaceAll('_',' ');
+}
+setInterval(update,1000);
+update();
+
+/* BUTTONS */
+formatBtn.onclick=()=>{
+  use24=!use24;
+  formatBtn.textContent=use24?"24-hour":"12 / 24h";
+  update();
+};
+secondsBtn.onclick=()=>{
+  showSeconds=!showSeconds;
+  secondsBtn.textContent=`Seconds: ${showSeconds?'ON':'OFF'}`;
+  update();
+};
+dateBtn.onclick=()=>{
+  showDate=!showDate;
+  dateBtn.textContent=`Date: ${showDate?'ON':'OFF'}`;
+  update();
+};
+
+/* LIGHT THEME */
+themeBtn.onclick=()=>{
+  light=!light;
+  space=false;
+  document.body.classList.toggle('light',light);
+  document.body.classList.remove('space');
+  themeBtn.textContent = light ? "Light: ON" : "Light Theme";
+};
+
+/* SPACE THEME */
+spaceBtn.onclick=()=>{
+  space=!space;
+  light=false;
+  document.body.classList.toggle('space',space);
+  document.body.classList.remove('light');
+  spaceBtn.textContent = space ? "Space: ON" : "Space Theme";
+};
+
+/* SCHOOL SYNC */
+schoolSyncBtn.onclick=()=>{
+  schoolSync=!schoolSync;
+  schoolSyncBtn.textContent = schoolSync ? "Sync: ON" : "School Clock Sync";
+  update();
+};
+
+/* SETTINGS PANEL */
+settingsBtn.onclick=()=>panel.classList.toggle('open');
+
+/* FULLSCREEN */
+fullscreenBtn.onclick=()=>{
+  document.fullscreenElement
+    ? document.exitFullscreen()
+    : document.documentElement.requestFullscreen();
+};
+
+/* ACCENT COLOR */
+accent.oninput=e=>{
+  document.documentElement.style.setProperty('--accent',e.target.value);
+};
+
+/* TIME ZONE */
+zone.onchange=e=>{
+  zone=e.target.value;
+  update();
+};
+
+/* SCALE */
+scale.oninput=e=>{
+  document.querySelector('.app').style.transform=`scale(${e.target.value})`;
+};
+
+/* STOPWATCH */
+let stopwatchRunning=false,swStart=0,swElapsed=0,swInterval;
+stopwatchBtn.onclick=()=>{
+  if(stopwatchRunning){
+    swElapsed+=Date.now()-swStart;
+    clearInterval(swInterval);
+    stopwatchRunning=false;
+    stopwatchBtn.textContent="Stopwatch";
+  }else{
+    swStart=Date.now();
+    stopwatchRunning=true;
+    stopwatchBtn.textContent="Stopwatch: Stop";
+    swInterval=setInterval(()=>{
+      timer.classList.add('show');
+      timer.textContent="Stopwatch  "+fmt((swElapsed+Date.now()-swStart)/1000);
+    },50);
+  }
+};
+function fmt(x){
+  x=Math.floor(x);
+  return String(Math.floor(x/3600)).padStart(2,'0')
+    +":"+String(Math.floor(x/60)%60).padStart(2,'0')
+    +":"+String(x%60).padStart(2,'0');
+}
+
+/* COUNTDOWN */
+let countdown=false,count=300,countInterval;
+countdownBtn.onclick=()=>{
+  if(countdown){
+    clearInterval(countInterval);
+    countdown=false;
+    countdownBtn.textContent="Countdown";
+    timer.classList.remove('show');
+    return;
+  }
+  const raw=prompt("Countdown seconds:", "300");
+  if(raw===null)return;
+  count=Math.max(1,parseInt(raw)||300);
+  countdown=true;
+  timer.classList.add('show');
+  countdownBtn.textContent="Countdown: Stop";
+  countInterval=setInterval(()=>{
+    timer.textContent="Countdown  "+fmt(count);
+    if(count<=0){
+      clearInterval(countInterval);
+      countdown=false;
+      countdownBtn.textContent="Countdown";
+      beep();
+    }
+    count--;
+  },1000);
+};
+function beep(){
+  try{
+    const a = new AudioContext();
+    const o = a.createOscillator();
+    const g = a.createGain();
+
+    o.connect(g);
+    g.connect(a.destination);
+
+    o.frequency.value = 880;     // beep pitch
+    g.gain.setValueAtTime(0.08, a.currentTime);
+
+    o.start(a.currentTime);
+    o.stop(a.currentTime + 0.3); // clean, non‑clipped beep
+  } catch(e) {
+    console.error(e);
+  }
+}
+</script>
+</body>
+</html>
+
+
