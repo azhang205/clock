@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title></title>
+<title>Clock</title>
 <style>
 html, body {
   height: 100%;
@@ -59,6 +59,82 @@ body.space #starfield {
   display: block;
 }
 
+/* SEASONAL EFFECTS */
+#seasonalEffects {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .8s;
+}
+
+body.seasonal #seasonalEffects {
+  opacity: 1;
+}
+
+#seasonalCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+body.seasonal.summer {
+  --bg:#8fd3ff;
+  --card:rgba(255,255,255,.84);
+  --face:#ffffff;
+  --text:#17384a;
+  background:linear-gradient(180deg,#68c5ff 0%,#bce9ff 58%,#8bd16d 58%,#4fa94f 100%);
+}
+
+body.seasonal.fall {
+  --bg:#d99b62;
+  --card:rgba(255,248,238,.88);
+  --face:#fffaf2;
+  --text:#4b2b1c;
+  background:linear-gradient(180deg,#b86f4f 0%,#d69a67 55%,#9b653e 55%,#70452f 100%);
+}
+
+body.seasonal.winter {
+  --bg:#eef7ff;
+  --card:rgba(255,255,255,.9);
+  --face:#ffffff;
+  --text:#27445b;
+  background:linear-gradient(180deg,#dbeeff 0%,#f8fcff 68%,#ffffff 68%,#eaf3f8 100%);
+}
+
+body.seasonal.spring {
+  --bg:#b9d8ad;
+  --card:rgba(248,252,245,.88);
+  --face:#f9fff7;
+  --text:#304631;
+  background:linear-gradient(180deg,#b8d7df 0%,#dce9dc 58%,#79a96b 58%,#4f8549 100%);
+}
+
+/* Small seasonal labels */
+#seasonLabel {
+  position:fixed;
+  top:58px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:20;
+  font-size:13px;
+  opacity:0;
+  padding:5px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.55);
+  color:var(--text);
+  backdrop-filter:blur(5px);
+  transition:.5s;
+  pointer-events:none;
+}
+
+body.seasonal #seasonLabel {
+  opacity:.8;
+}
+
 /* BASE BODY */
 body{
   background:var(--bg);
@@ -85,7 +161,7 @@ body{
   z-index:20;
 }
 
-/* BUTTONS */
+/* CONTROLS */
 button,select,input{font:inherit}
 button{
   border:1px solid #444;
@@ -100,6 +176,42 @@ button:hover{
   filter:brightness(1.15);
   box-shadow:0 0 12px var(--accent);
   border-color:var(--accent);
+}
+
+.theme-select-wrap{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid #444;
+  background:var(--card);
+  color:var(--text);
+  border-radius:9px;
+  padding:0 10px;
+  transition:.25s;
+}
+
+.theme-select-wrap:hover{
+  border-color:var(--accent);
+  box-shadow:0 0 12px var(--accent);
+}
+
+.theme-select-wrap span{
+  font-size:13px;
+  opacity:.7;
+}
+
+.theme-select-wrap select{
+  border:0;
+  outline:0;
+  background:transparent;
+  color:var(--text);
+  padding:9px 2px;
+  cursor:pointer;
+}
+
+.theme-select-wrap select option{
+  background:#fff;
+  color:#111;
 }
 
 /* CONTROLS */
@@ -258,8 +370,15 @@ body.light .flipDrop {
   <button id="formatBtn">12 / 24h</button>
   <button id="secondsBtn">Seconds: ON</button>
   <button id="dateBtn">Date: ON</button>
-  <button id="themeBtn">Light Theme</button>
-  <button id="spaceBtn">Space Theme</button>
+  <label class="theme-select-wrap">
+    <span>Theme</span>
+    <select id="themeSelect" aria-label="Theme">
+      <option value="default">Default</option>
+      <option value="light">Light</option>
+      <option value="space">Space</option>
+      <option value="seasonal">Seasonal</option>
+    </select>
+  </label>
   <button id="schoolSyncBtn">School Clock Sync</button>
   <button id="stopwatchBtn">Stopwatch</button>
   <button id="countdownBtn">Countdown</button>
@@ -343,8 +462,9 @@ initStars();
 /* CLOCK LOGIC */
 const digits=[...document.querySelectorAll('.digit')];
 let use24=false, showSeconds=true, showDate=true;
-let light=false, space=false;
 let schoolSync=false;
+let currentTheme='default';
+let currentSeason='';
 let schoolOffset=16;
 let zone='local';
 let previous="";
@@ -467,7 +587,7 @@ function update(){
 setInterval(update,1000);
 update();
 
-/* BUTTONS */
+/* CONTROLS */
 formatBtn.onclick=()=>{
   use24=!use24;
   formatBtn.textContent=use24?"24-hour":"12 / 24h";
@@ -484,23 +604,271 @@ dateBtn.onclick=()=>{
   update();
 };
 
-/* LIGHT THEME */
-themeBtn.onclick=()=>{
-  light=!light;
-  space=false;
-  document.body.classList.toggle('light',light);
-  document.body.classList.remove('space');
-  themeBtn.textContent = light ? "Light: ON" : "Light Theme";
-};
+/* THEME SELECTOR + SEASONAL THEME */
+const themeSelect = document.getElementById('themeSelect');
+const seasonalCanvas = document.getElementById('seasonalCanvas');
+const seasonalCtx = seasonalCanvas.getContext('2d');
+const seasonLabel = document.getElementById('seasonLabel');
 
-/* SPACE THEME */
-spaceBtn.onclick=()=>{
-  space=!space;
-  light=false;
-  document.body.classList.toggle('space',space);
-  document.body.classList.remove('light');
-  spaceBtn.textContent = space ? "Space: ON" : "Space Theme";
-};
+let seasonalParticles = [];
+let seasonalAnimation;
+
+function getSeason(date = new Date()){
+  const month = date.getMonth() + 1;
+
+  if(month >= 3 && month <= 5) return 'spring';
+  if(month >= 6 && month <= 8) return 'summer';
+  if(month >= 9 && month <= 11) return 'fall';
+  return 'winter';
+}
+
+function seasonName(season){
+  return season.charAt(0).toUpperCase() + season.slice(1);
+}
+
+function resizeSeasonalCanvas(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  seasonalCanvas.width = innerWidth * dpr;
+  seasonalCanvas.height = innerHeight * dpr;
+  seasonalCanvas.style.width = innerWidth + 'px';
+  seasonalCanvas.style.height = innerHeight + 'px';
+  seasonalCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+function makeSeasonalParticles(season){
+  seasonalParticles = [];
+
+  if(season === 'fall'){
+    for(let i=0;i<35;i++){
+      seasonalParticles.push({
+        x:Math.random()*innerWidth,
+        y:Math.random()*innerHeight,
+        size:5+Math.random()*7,
+        speed:.45+Math.random()*1.1,
+        drift:Math.random()*1.4-.7,
+        rotation:Math.random()*Math.PI*2,
+        spin:Math.random()*.04-.02,
+        hue:Math.random()
+      });
+    }
+  }
+
+  if(season === 'winter'){
+    for(let i=0;i<80;i++){
+      seasonalParticles.push({
+        x:Math.random()*innerWidth,
+        y:Math.random()*innerHeight,
+        size:2+Math.random()*4,
+        speed:.45+Math.random()*1.4,
+        drift:Math.random()*.6-.3
+      });
+    }
+  }
+}
+
+function drawSummer(){
+  /* Sun */
+  seasonalCtx.save();
+  seasonalCtx.globalAlpha=.9;
+  seasonalCtx.fillStyle='#fff2a8';
+  seasonalCtx.beginPath();
+  seasonalCtx.arc(innerWidth-110,95,42,0,Math.PI*2);
+  seasonalCtx.fill();
+
+  seasonalCtx.strokeStyle='rgba(255,242,168,.5)';
+  seasonalCtx.lineWidth=4;
+  for(let i=0;i<12;i++){
+    const a=i*Math.PI/6;
+    seasonalCtx.beginPath();
+    seasonalCtx.moveTo(innerWidth-110+Math.cos(a)*55,95+Math.sin(a)*55);
+    seasonalCtx.lineTo(innerWidth-110+Math.cos(a)*72,95+Math.sin(a)*72);
+    seasonalCtx.stroke();
+  }
+
+  /* Grass */
+  seasonalCtx.fillStyle='#3e8d43';
+  seasonalCtx.fillRect(0,innerHeight*.58,innerWidth,innerHeight*.42);
+  seasonalCtx.strokeStyle='#75bb58';
+  seasonalCtx.lineWidth=2;
+  for(let x=0;x<innerWidth;x+=14){
+    seasonalCtx.beginPath();
+    seasonalCtx.moveTo(x,innerHeight*.58+8);
+    seasonalCtx.lineTo(x+4,innerHeight*.58-2-Math.random()*5);
+    seasonalCtx.stroke();
+  }
+  seasonalCtx.restore();
+}
+
+function drawFall(){
+  seasonalCtx.save();
+
+  /* Ground */
+  seasonalCtx.fillStyle='rgba(92,55,34,.32)';
+  seasonalCtx.fillRect(0,innerHeight*.57,innerWidth,innerHeight*.43);
+
+  /* A few distant branches */
+  seasonalCtx.strokeStyle='rgba(65,38,25,.45)';
+  seasonalCtx.lineWidth=8;
+  seasonalCtx.beginPath();
+  seasonalCtx.moveTo(80,innerHeight*.65);
+  seasonalCtx.lineTo(105,innerHeight*.25);
+  seasonalCtx.lineTo(175,innerHeight*.15);
+  seasonalCtx.moveTo(105,innerHeight*.25);
+  seasonalCtx.lineTo(55,innerHeight*.16);
+  seasonalCtx.stroke();
+
+  seasonalCtx.restore();
+
+  seasonalParticles.forEach(p=>{
+    seasonalCtx.save();
+    seasonalCtx.translate(p.x,p.y);
+    seasonalCtx.rotate(p.rotation);
+    seasonalCtx.fillStyle =
+      p.hue < .33 ? '#b9472e' :
+      p.hue < .66 ? '#d8782d' : '#e3a12f';
+
+    seasonalCtx.beginPath();
+    seasonalCtx.ellipse(0,0,p.size*.7,p.size,Math.PI/4,0,Math.PI*2);
+    seasonalCtx.fill();
+    seasonalCtx.restore();
+
+    p.y += p.speed;
+    p.x += p.drift + Math.sin(p.y*.015)*.35;
+    p.rotation += p.spin;
+
+    if(p.y > innerHeight+20){
+      p.y = -20;
+      p.x = Math.random()*innerWidth;
+    }
+    if(p.x < -20) p.x = innerWidth+20;
+    if(p.x > innerWidth+20) p.x = -20;
+  });
+}
+
+function drawWinter(){
+  seasonalCtx.save();
+
+  /* Snow-covered ground */
+  seasonalCtx.fillStyle='rgba(255,255,255,.92)';
+  seasonalCtx.fillRect(0,innerHeight*.68,innerWidth,innerHeight*.32);
+
+  seasonalParticles.forEach(p=>{
+    seasonalCtx.fillStyle='rgba(255,255,255,.9)';
+    seasonalCtx.beginPath();
+    seasonalCtx.arc(p.x,p.y,p.size,0,Math.PI*2);
+    seasonalCtx.fill();
+
+    p.y += p.speed;
+    p.x += p.drift + Math.sin(p.y*.01)*.2;
+
+    if(p.y > innerHeight+10){
+      p.y = -10;
+      p.x = Math.random()*innerWidth;
+    }
+  });
+
+  seasonalCtx.restore();
+}
+
+function drawSpring(){
+  seasonalCtx.save();
+
+  /* Green grass */
+  seasonalCtx.fillStyle='#5c9a51';
+  seasonalCtx.fillRect(0,innerHeight*.58,innerWidth,innerHeight*.42);
+
+  /* Bare trees with tiny signs of regrowth */
+  const trees=[
+    {x:innerWidth*.14,h:innerHeight*.36},
+    {x:innerWidth*.82,h:innerHeight*.31}
+  ];
+
+  trees.forEach(t=>{
+    seasonalCtx.strokeStyle='#5b4a3d';
+    seasonalCtx.lineWidth=9;
+    seasonalCtx.beginPath();
+    seasonalCtx.moveTo(t.x,innerHeight*.62);
+    seasonalCtx.lineTo(t.x,t.h);
+    seasonalCtx.stroke();
+
+    seasonalCtx.lineWidth=4;
+    seasonalCtx.beginPath();
+    seasonalCtx.moveTo(t.x,t.h+55);
+    seasonalCtx.lineTo(t.x-55,t.h+5);
+    seasonalCtx.moveTo(t.x,t.h+40);
+    seasonalCtx.lineTo(t.x+48,t.h-5);
+    seasonalCtx.moveTo(t.x,t.h+75);
+    seasonalCtx.lineTo(t.x+60,t.h+45);
+    seasonalCtx.stroke();
+
+    /* The slightest hint of new leaves */
+    seasonalCtx.fillStyle='#8fbd70';
+    [[-57,4],[48,-5],[61,45]].forEach(([dx,dy])=>{
+      seasonalCtx.beginPath();
+      seasonalCtx.arc(t.x+dx,t.h+dy,5,0,Math.PI*2);
+      seasonalCtx.fill();
+    });
+  });
+
+  seasonalCtx.restore();
+}
+
+function animateSeasonal(){
+  seasonalCtx.clearRect(0,0,innerWidth,innerHeight);
+
+  if(currentTheme === 'seasonal'){
+    if(currentSeason === 'summer') drawSummer();
+    if(currentSeason === 'fall') drawFall();
+    if(currentSeason === 'winter') drawWinter();
+    if(currentSeason === 'spring') drawSpring();
+  }
+
+  seasonalAnimation=requestAnimationFrame(animateSeasonal);
+}
+
+function applyTheme(theme){
+  currentTheme=theme;
+
+  document.body.classList.remove('light','space','seasonal','spring','summer','fall','winter');
+
+  if(theme === 'light'){
+    document.body.classList.add('light');
+  }else if(theme === 'space'){
+    document.body.classList.add('space');
+  }else if(theme === 'seasonal'){
+    currentSeason=getSeason();
+    document.body.classList.add('seasonal',currentSeason);
+    seasonLabel.textContent=seasonName(currentSeason)+' Seasonal Theme';
+    makeSeasonalParticles(currentSeason);
+  }
+
+  themeSelect.value=theme;
+}
+
+themeSelect.addEventListener('change',e=>applyTheme(e.target.value));
+
+window.addEventListener('resize',()=>{
+  resizeSeasonalCanvas();
+  if(currentTheme === 'seasonal') makeSeasonalParticles(currentSeason);
+});
+
+resizeSeasonalCanvas();
+applyTheme('default');
+animateSeasonal();
+
+/* Check the date periodically so the seasonal theme changes automatically. */
+setInterval(()=>{
+  if(currentTheme !== 'seasonal') return;
+
+  const newSeason=getSeason();
+  if(newSeason !== currentSeason){
+    currentSeason=newSeason;
+    document.body.classList.remove('spring','summer','fall','winter');
+    document.body.classList.add(newSeason);
+    seasonLabel.textContent=seasonName(newSeason)+' Seasonal Theme';
+    makeSeasonalParticles(newSeason);
+  }
+},60000);
 
 /* SCHOOL SYNC */
 schoolSyncBtn.onclick=()=>{
@@ -608,5 +976,3 @@ function beep(){
 </script>
 </body>
 </html>
-
-
